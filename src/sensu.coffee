@@ -150,7 +150,7 @@ module.exports = (robot) ->
     data['expire'] = expiration
     data['path'] = 'silence/' + path
 
-      credential = createCredential()
+    credential = createCredential()
     req = robot.http(config.sensu_api + '/stashes')
     if credential
       req = req.headers(Authorization: credential)
@@ -174,7 +174,7 @@ module.exports = (robot) ->
     unless stash.match /^silence\/(.*)\//
       stash = addClientDomain(stash)
 
-     credential = createCredential()
+    credential = createCredential()
     req = robot.http(config.sensu_api + '/stashes')
     if credential
       req = req.headers(Authorization: credential)
@@ -218,7 +218,6 @@ module.exports = (robot) ->
     validateVars
     client = addClientDomain(msg.match[1])
 
-
     credential = createCredential()
     req = robot.http(config.sensu_api + '/clients/' + client + '/history')
     if credential
@@ -250,8 +249,7 @@ module.exports = (robot) ->
     validateVars
     client = addClientDomain(msg.match[1])
 
-
-     credential = createCredential()
+    credential = createCredential()
     req = robot.http(config.sensu_api + '/clients/' + client)
     if credential
       req = req.headers(Authorization: credential)
@@ -296,7 +294,7 @@ module.exports = (robot) ->
       client = ''
 
 
-     credential = createCredential()
+    credential = createCredential()
     req = robot.http(config.sensu_api + '/events' + client)
     if credential
       req = req.headers(Authorization: credential)
@@ -329,7 +327,7 @@ module.exports = (robot) ->
     data['check'] = msg.match[2]
 
 
-     credential = createCredential()
+    credential = createCredential()
     req = robot.http(config.sensu_api + '/resolve')
     if credential
       req = req.headers(Authorization: credential)
