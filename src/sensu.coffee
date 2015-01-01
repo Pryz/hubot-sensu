@@ -43,7 +43,7 @@ module.exports = (robot) ->
       msg.send "Please set the HUBOT_SENSU_API_URL environment variable."
       return
 
-createCredential = ->
+  createCredential = ->
     username = process.env.HUBOT_SENSU_API_USERNAME
     password = process.env.HUBOT_SENSU_API_PASSWORD
     if username && password
