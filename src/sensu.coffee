@@ -6,7 +6,6 @@
 #
 # Configuration:
 #   HUBOT_SENSU_API_URL - URL for the sensu api service.  http://sensu.yourdomain.com:4567
-#   HUBOT_SENSU_DOMAIN - Domain to force on all clients.  Not used if blank/unset
 #   HUBOT_SENSU_API_USERNAME - Username for the sensu api basic auth. Not used if blank/unset
 #   HUBOT_SENSU_API_PASSWORD - Password for the sensu api basic auth. Not used if blank/unset
 #
@@ -62,7 +61,7 @@ module.exports = (robot) ->
 
   robot.respond /sensu info/i, (msg) ->
     validateVars
-    credential = createCredential
+    credential = createCredential()
     req = robot.http(config.sensu_api + '/info')
     if credential
       req = req.headers(Authorization: credential)
@@ -115,7 +114,7 @@ module.exports = (robot) ->
     # msg.match[4] = units (required if duration)
 
     validateVars
-    client = addClientDomain(msg.match[1])
+    client = msg.match[1]
 
     if msg.match[2]
       path = client + '/' + msg.match[2]
@@ -170,10 +169,6 @@ module.exports = (robot) ->
     unless stash.match /^silence\//
       stash = 'silence/' + stash
 
-    # If it is only a hostname, verify domain name
-    unless stash.match /^silence\/(.*)\//
-      stash = addClientDomain(stash)
-
     credential = createCredential()
     req = robot.http(config.sensu_api + '/stashes')
     if credential
@@ -216,7 +211,7 @@ module.exports = (robot) ->
 
   robot.respond /sensu client (.*)( history)/i, (msg) ->
     validateVars
-    client = addClientDomain(msg.match[1])
+    client = msg.match[1]
 
     credential = createCredential()
     req = robot.http(config.sensu_api + '/clients/' + client + '/history')
@@ -247,7 +242,7 @@ module.exports = (robot) ->
 
   robot.respond /sensu client (.*)/i, (msg) ->
     validateVars
-    client = addClientDomain(msg.match[1])
+    client = msg.match[1]
 
     credential = createCredential()
     req = robot.http(config.sensu_api + '/clients/' + client)
@@ -269,9 +264,13 @@ module.exports = (robot) ->
 
   robot.respond /(?:sensu)? remove client (.*)/i, (msg) ->
     validateVars
-    client= addClientDomain(msg.match[1])
+    client= msg.match[1]
 
-    robot.http(config.sensu_api + '/clients/' + client)
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/clients/' + client)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .delete() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -289,10 +288,9 @@ module.exports = (robot) ->
   robot.respond /sensu events(?: for (.*))?/i, (msg) ->
     validateVars
     if msg.match[1]
-      client = '/' + addClientDomain(msg.match[1])
+      client = '/' + msg.match[1]
     else
       client = ''
-
 
     credential = createCredential()
     req = robot.http(config.sensu_api + '/events' + client)
@@ -320,12 +318,11 @@ module.exports = (robot) ->
 
   robot.respond /(?:sensu)? resolve event (.*)(?:\/)(.*)/i, (msg) ->
     validateVars
-    client = addClientDomain(msg.match[1])
+    client = msg.match[1]
 
     data = {}
     data['client'] = client
     data['check'] = msg.match[2]
-
 
     credential = createCredential()
     req = robot.http(config.sensu_api + '/resolve')
