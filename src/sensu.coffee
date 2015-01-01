@@ -5,8 +5,10 @@
 #   "moment": ">=1.6.0"
 #
 # Configuration:
-#   HUBOT_SENSU_API_UR - URL for the sensu api service.  http://sensu.yourdomain.com:4567
+#   HUBOT_SENSU_API_URL - URL for the sensu api service.  http://sensu.yourdomain.com:4567
 #   HUBOT_SENSU_DOMAIN - Domain to force on all clients.  Not used if blank/unset
+#   HUBOT_SENSU_API_USERNAME - Username for the sensu api basic auth. Not used if blank/unset
+#   HUBOT_SENSU_API_PASSWORD - Password for the sensu api basic auth. Not used if blank/unset
 #
 # Commands:
 #   hubot sensu info - show sensu api info
@@ -41,6 +43,15 @@ module.exports = (robot) ->
       msg.send "Please set the HUBOT_SENSU_API_URL environment variable."
       return
 
+createCredential = ->
+    username = process.env.HUBOT_SENSU_API_USERNAME
+    password = process.env.HUBOT_SENSU_API_PASSWORD
+    if username && password
+      auth = 'Basic ' + new Buffer(username + ':' + password).toString('base64');
+    else
+      auth = null
+    auth
+
 ######################
 #### Info methods ####
 ######################
@@ -51,7 +62,11 @@ module.exports = (robot) ->
 
   robot.respond /sensu info/i, (msg) ->
     validateVars
-    robot.http(config.sensu_api + '/info')
+    credential = createCredential
+    req = robot.http(config.sensu_api + '/info')
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -72,7 +87,11 @@ module.exports = (robot) ->
 #######################
   robot.respond /(?:sensu)? stashes/i, (msg) ->
     validateVars
-    robot.http(config.sensu_api + '/stashes')
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/stashes')
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -131,7 +150,11 @@ module.exports = (robot) ->
     data['expire'] = expiration
     data['path'] = 'silence/' + path
 
-    robot.http(config.sensu_api + '/stashes')
+      credential = createCredential()
+    req = robot.http(config.sensu_api + '/stashes')
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .post(JSON.stringify(data)) (err, res, body) ->
         if res.statusCode is 201
           msg.send path + ' silenced for ' + human_d
@@ -151,7 +174,11 @@ module.exports = (robot) ->
     unless stash.match /^silence\/(.*)\//
       stash = addClientDomain(stash)
 
-    robot.http(config.sensu_api + '/stashes/' + stash)
+     credential = createCredential()
+    req = robot.http(config.sensu_api + '/stashes')
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .delete() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -168,7 +195,11 @@ module.exports = (robot) ->
 ########################
   robot.respond /sensu clients/i, (msg) ->
     validateVars
-    robot.http(config.sensu_api + '/clients')
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/clients')
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -187,7 +218,12 @@ module.exports = (robot) ->
     validateVars
     client = addClientDomain(msg.match[1])
 
-    robot.http(config.sensu_api + '/clients/' + client + '/history')
+
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/clients/' + client + '/history')
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -214,7 +250,12 @@ module.exports = (robot) ->
     validateVars
     client = addClientDomain(msg.match[1])
 
-    robot.http(config.sensu_api + '/clients/' + client)
+
+     credential = createCredential()
+    req = robot.http(config.sensu_api + '/clients/' + client)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -254,7 +295,12 @@ module.exports = (robot) ->
     else
       client = ''
 
-    robot.http(config.sensu_api + '/events' + client)
+
+     credential = createCredential()
+    req = robot.http(config.sensu_api + '/events' + client)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -282,7 +328,12 @@ module.exports = (robot) ->
     data['client'] = client
     data['check'] = msg.match[2]
 
-    robot.http(config.sensu_api + '/resolve')
+
+     credential = createCredential()
+    req = robot.http(config.sensu_api + '/resolve')
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .post(JSON.stringify(data)) (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
