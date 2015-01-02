@@ -145,7 +145,7 @@ module.exports = (robot) ->
     data = {}
     data['content'] = {}
     data['content']['timestamp'] = moment().unix()
-    data['content']['by'] = msg.message.user.name
+    data['content']['reason'] = msg.message.user.name + ' silenced'
     data['expire'] = expiration
     data['path'] = 'silence/' + path
 
