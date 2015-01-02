@@ -168,7 +168,7 @@ module.exports = (robot) ->
     stash = msg.match[1]
     unless stash.match /^silence\//
       stash = 'silence/' + stash
-
+      console.log stash
     credential = createCredential()
     req = robot.http(config.sensu_api + '/stashes')
     if credential
