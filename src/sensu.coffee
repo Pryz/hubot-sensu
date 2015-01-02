@@ -100,8 +100,8 @@ module.exports = (robot) ->
         for result,value of results
           console.log value
           message = value['path'] + ' added on ' + moment.unix(value['content']['timestamp']).format('HH:MM M/D/YY')
-          if value['content']['by']
-            message = message + ' by ' + value['content']['by']
+          if value['content']['reason']
+            message = message + ' reason: ' + value['content']['reason']
           if value['expire'] and value['expire'] > 0
             message = message + ', expires in ' + value['expire'] + ' seconds'
           output.push message
