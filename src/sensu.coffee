@@ -308,7 +308,7 @@ module.exports = (robot) ->
             flapping = ', flapping'
           else
             flapping = ''
-          output.push value['client'] + ' (' + value['check'] + flapping + ') - ' + value['output']
+          output.push value['client']['name'] + ' (' + value['check'] + flapping + ') - ' + value['check']['output']
         if output.length is 0
           message = 'No events'
           if client != ''
