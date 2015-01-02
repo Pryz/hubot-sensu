@@ -206,6 +206,8 @@ module.exports = (robot) ->
 
         if output.length is 0
           msg.send 'No clients'
+        else if output.length > 10
+          msg.send 'You have too many clients for this'
         else
           msg.send output.sort().join('\n')
 
