@@ -16,7 +16,7 @@
 #   hubot sensu remove stash <stash> - remove a stash from sensu
 #   hubot sensu clients - show all clients
 #   hubot sensu client <client>[ history] - show a specific client['s history]
-#   hubot sensu sensu remove client <client> - remove a client from sensu
+#   hubot sensu remove client <client> - remove a client from sensu
 #   hubot sensu events[ for <client>] - show all events or for a specific client
 #   hubot sensu resolve event <client>/<service> - resolve a sensu event
 #
@@ -99,7 +99,7 @@ module.exports = (robot) ->
         output = []
         for result,value of results
           console.log value
-          message = value['path'] + ' added on ' + moment.unix(value['content']['timestamp']).format('HH:MM M/D/YY')
+          message = value['path'] + ' added on ' + moment.unix(value['content']['timestamp']).format('HH:MM YY/M/D')
           if value['content']['reason']
             message = message + ' reason: ' + value['content']['reason']
           if value['expire'] and value['expire'] > 0
