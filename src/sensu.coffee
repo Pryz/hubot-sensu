@@ -232,7 +232,7 @@ module.exports = (robot) ->
           if output.length is 0
             msg.send 'No history found for ' + client
           else
-            message = 'History for ' + client
+            message = 'History for ' + client + ':\n'
             message = message + output.sort().join('\n')
             msg.send message
         else if res.statusCode is 404
@@ -240,9 +240,13 @@ module.exports = (robot) ->
         else
           msg.send "An error occurred looking up #{client}'s history (#{res.statusCode}: #{body})"
 
+  # get client info (not history)
   robot.respond /sensu client (?:http\:\/\/)?(.*)/i, (msg) ->
     validateVars
     client = msg.match[1]
+    # ignore if user asks for history
+    if client.match(/\ history/)
+      return
 
     credential = createCredential()
     req = robot.http(config.sensu_api + '/clients/' + client)
