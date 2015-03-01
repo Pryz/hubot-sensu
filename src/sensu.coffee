@@ -97,7 +97,7 @@ module.exports = (robot) ->
           return
         results = JSON.parse(body)
         output = []
-        for result,value of results
+        for value in results
           console.log value
           message = value['path'] + ' added on ' + moment.unix(value['content']['timestamp']).format('HH:MM YY/M/D')
           if value['content']['reason']
@@ -200,7 +200,7 @@ module.exports = (robot) ->
           return
         results = JSON.parse(body)
         output = []
-        for result,value of results
+        for value in results
           output.push value['name'] + ' (' + value['address'] + ') subscriptions: ' + value['subscriptions'].sort().join(', ')
 
         if output.length is 0
@@ -226,7 +226,7 @@ module.exports = (robot) ->
         if res.statusCode is 200
           results = JSON.parse(body)
           output = []
-          for result,value of results
+          for value in results
             output.push value['check'] + ' (last execution: ' + moment.unix(value['last_execution']).format('HH:MM M/D/YY') + ') history: ' + value['history'].join(', ')
 
           if output.length is 0
@@ -304,12 +304,12 @@ module.exports = (robot) ->
           return
         results = JSON.parse(body)
         output = []
-        for result,value of results
+        for value in results
           if value['flapping']
             flapping = ', flapping'
           else
             flapping = ''
-          output.push value['client']['name'] + ' (' + value['check'] + flapping + ') - ' + value['check']['output']
+          output.push value['client']['name'] + ' (' + value['check']['name'] + flapping + ') - ' + value['check']['output']
         if output.length is 0
           message = 'No events'
           if client != ''
