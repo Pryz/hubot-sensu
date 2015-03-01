@@ -107,7 +107,7 @@ module.exports = (robot) ->
           output.push message
         msg.send output.sort().join('\n')
 
-  robot.respond /(?:sensu)? silence ([^\s\/]*)(?:\/)?([^\s]*)?(?: for (\d+)(\w))?/i, (msg) ->
+  robot.respond /(?:sensu)? silence (?:http\:\/\/)?([^\s\/]*)(?:\/)?([^\s]*)?(?: for (\d+)(\w))?/i, (msg) ->
     # msg.match[1] = client
     # msg.match[2] = event (optional)
     # msg.match[3] = duration (optional)
@@ -162,7 +162,7 @@ module.exports = (robot) ->
         else
           msg.send "API returned an error for path silence/#{path}\ndata: #{JSON.stringify(data)}\nresponse:#{res.statusCode}: #{body}"
 
-  robot.respond /(?:sensu)? remove stash (.*)/i, (msg) ->
+  robot.respond /(?:sensu)? remove stash (?:http\:\/\/)?(.*)/i, (msg) ->
     validateVars
 
     stash = msg.match[1]
@@ -210,7 +210,7 @@ module.exports = (robot) ->
         else
           msg.send output.sort().join('\n')
 
-  robot.respond /sensu client (.*)( history)/i, (msg) ->
+  robot.respond /sensu client (?:http\:\/\/)?(.*)( history)/i, (msg) ->
     validateVars
     client = msg.match[1]
 
@@ -240,8 +240,7 @@ module.exports = (robot) ->
         else
           msg.send "An error occurred looking up #{client}'s history (#{res.statusCode}: #{body})"
 
-
-  robot.respond /sensu client (.*)/i, (msg) ->
+  robot.respond /sensu client (?:http\:\/\/)?(.*)/i, (msg) ->
     validateVars
     client = msg.match[1]
 
@@ -263,7 +262,7 @@ module.exports = (robot) ->
           msg.send "An error occurred looking up #{client} #{res.statusCode}: #{body}"
 
 
-  robot.respond /(?:sensu)? remove client (.*)/i, (msg) ->
+  robot.respond /(?:sensu)? remove client (?:http\:\/\/)?(.*)/i, (msg) ->
     validateVars
     client= msg.match[1]
 
@@ -286,7 +285,7 @@ module.exports = (robot) ->
 #######################
 #### Event methods ####
 #######################
-  robot.respond /sensu events(?: for (.*))?/i, (msg) ->
+  robot.respond /sensu events(?: for (?:http\:\/\/)?(.*))?/i, (msg) ->
     validateVars
     if msg.match[1]
       client = '/' + msg.match[1]
@@ -317,7 +316,7 @@ module.exports = (robot) ->
           msg.send message
         msg.send output.sort().join('\n')
 
-  robot.respond /(?:sensu)? resolve event (.*)(?:\/)(.*)/i, (msg) ->
+  robot.respond /(?:sensu)? resolve event (?:http\:\/\/)?(.*)(?:\/)(.*)/i, (msg) ->
     validateVars
     client = msg.match[1]
 
