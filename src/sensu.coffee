@@ -31,8 +31,13 @@
 
 config =
   sensu_api: process.env.HUBOT_SENSU_API_URL
-
+  allow_invalid_certs: process.env.HUBOT_SENSU_API_ALLOW_INVALID_CERTS
 moment = require('moment')
+
+if config.allow_invalid_certs
+  http_options = rejectUnauthorized: false
+else
+  http_options = {}
 
 module.exports = (robot) ->
 
@@ -62,7 +67,8 @@ module.exports = (robot) ->
   robot.respond /sensu info/i, (msg) ->
     validateVars
     credential = createCredential()
-    req = robot.http(config.sensu_api + '/info')
+    
+    req = robot.http(config.sensu_api + '/info', http_options)
     if credential
       req = req.headers(Authorization: credential)
     req
@@ -87,7 +93,7 @@ module.exports = (robot) ->
   robot.respond /(?:sensu)? stashes/i, (msg) ->
     validateVars
     credential = createCredential()
-    req = robot.http(config.sensu_api + '/stashes')
+    req = robot.http(config.sensu_api + '/stashes', http_options)
     if credential
       req = req.headers(Authorization: credential)
     req
@@ -150,7 +156,7 @@ module.exports = (robot) ->
     data['path'] = 'silence/' + path
 
     credential = createCredential()
-    req = robot.http(config.sensu_api + '/stashes')
+    req = robot.http(config.sensu_api + '/stashes', http_options)
     if credential
       req = req.headers(Authorization: credential)
     req
@@ -169,7 +175,7 @@ module.exports = (robot) ->
     unless stash.match /^silence\//
       stash = 'silence/' + stash
     credential = createCredential()
-    req = robot.http(config.sensu_api + '/stashes/' + stash)
+    req = robot.http(config.sensu_api + '/stashes/' + stash, http_options)
     if credential
       req = req.headers(Authorization: credential)
     req
@@ -190,7 +196,7 @@ module.exports = (robot) ->
   robot.respond /sensu clients/i, (msg) ->
     validateVars
     credential = createCredential()
-    req = robot.http(config.sensu_api + '/clients')
+    req = robot.http(config.sensu_api + '/clients', http_options)
     if credential
       req = req.headers(Authorization: credential)
     req
@@ -215,7 +221,7 @@ module.exports = (robot) ->
     client = msg.match[1]
 
     credential = createCredential()
-    req = robot.http(config.sensu_api + '/clients/' + client + '/history')
+    req = robot.http(config.sensu_api + '/clients/' + client + '/history', http_options)
     if credential
       req = req.headers(Authorization: credential)
     req
@@ -249,7 +255,7 @@ module.exports = (robot) ->
       return
 
     credential = createCredential()
-    req = robot.http(config.sensu_api + '/clients/' + client)
+    req = robot.http(config.sensu_api + '/clients/' + client, http_options)
     if credential
       req = req.headers(Authorization: credential)
     req
@@ -271,7 +277,7 @@ module.exports = (robot) ->
     client= msg.match[1]
 
     credential = createCredential()
-    req = robot.http(config.sensu_api + '/clients/' + client)
+    req = robot.http(config.sensu_api + '/clients/' + client, http_options)
     if credential
       req = req.headers(Authorization: credential)
     req
@@ -297,7 +303,7 @@ module.exports = (robot) ->
       client = ''
 
     credential = createCredential()
-    req = robot.http(config.sensu_api + '/events' + client)
+    req = robot.http(config.sensu_api + '/events' + client, http_options)
     if credential
       req = req.headers(Authorization: credential)
     req
@@ -329,7 +335,7 @@ module.exports = (robot) ->
     data['check'] = msg.match[2]
 
     credential = createCredential()
-    req = robot.http(config.sensu_api + '/resolve')
+    req = robot.http(config.sensu_api + '/resolve', http_options)
     if credential
       req = req.headers(Authorization: credential)
     req
