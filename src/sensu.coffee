@@ -8,6 +8,7 @@
 #   HUBOT_SENSU_API_URL - URL for the sensu api service.  http://sensu.yourdomain.com:4567
 #   HUBOT_SENSU_API_USERNAME - Username for the sensu api basic auth. Not used if blank/unset
 #   HUBOT_SENSU_API_PASSWORD - Password for the sensu api basic auth. Not used if blank/unset
+#   HUBOT_SENSU_API_ALLOW_INVALID_CERTS - Allow self signed and invalid certs. Default:false
 #
 # Commands:
 #   hubot sensu info - show sensu api info
