@@ -9,6 +9,8 @@
 #   HUBOT_SENSU_API_USERNAME - Username for the sensu api basic auth. Not used if blank/unset
 #   HUBOT_SENSU_API_PASSWORD - Password for the sensu api basic auth. Not used if blank/unset
 #   HUBOT_SENSU_API_ALLOW_INVALID_CERTS - Allow self signed and invalid certs. Default:false
+#   HUBOT_SENSU_ROLES - using the auth script, what role has access to this.
+#                       only supports one role right now.
 #
 # Commands:
 #   hubot sensu info - show sensu api info
@@ -26,13 +28,15 @@
 #   Checks endpoint not implemented (http://docs.sensuapp.org/0.12/api/checks.html) -- also note /check/request is deprecated in favor of /request
 #   Aggregates endpoint not implemented (http://docs.sensuapp.org/0.12/api/aggregates.html)
 #
-# Author:
+# Authors:
 #   Justin Lambert - jlambert121
+#   Josh Beard
 #
 
 config =
   sensu_api: process.env.HUBOT_SENSU_API_URL
   allow_invalid_certs: process.env.HUBOT_SENSU_API_ALLOW_INVALID_CERTS
+  sensu_roles: process.env.HUBOT_SENSU_ROLE
 moment = require('moment')
 
 if config.allow_invalid_certs
@@ -61,14 +65,21 @@ module.exports = (robot) ->
 #### Info methods ####
 ######################
   robot.respond /sensu help/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
+
     cmds = robot.helpCommands()
     cmds = (cmd for cmd in cmds when cmd.match(/(sensu)/))
     msg.send cmds.join("\n")
 
   robot.respond /sensu info/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
     credential = createCredential()
-    
+
     req = robot.http(config.sensu_api + '/info', http_options)
     if credential
       req = req.headers(Authorization: credential)
@@ -92,6 +103,9 @@ module.exports = (robot) ->
 #### Stash methods ####
 #######################
   robot.respond /(?:sensu)? stashes/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
     credential = createCredential()
     req = robot.http(config.sensu_api + '/stashes', http_options)
@@ -115,6 +129,9 @@ module.exports = (robot) ->
         msg.send output.sort().join('\n')
 
   robot.respond /(?:sensu)? silence (?:http\:\/\/)?([^\s\/]*)(?:\/)?([^\s]*)?(?: for (\d+)(\w))?/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     # msg.match[1] = client
     # msg.match[2] = event (optional)
     # msg.match[3] = duration (optional)
@@ -170,6 +187,9 @@ module.exports = (robot) ->
           msg.send "API returned an error for path silence/#{path}\ndata: #{JSON.stringify(data)}\nresponse:#{res.statusCode}: #{body}"
 
   robot.respond /(?:sensu)? remove stash (?:http\:\/\/)?(.*)/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
 
     stash = msg.match[1]
@@ -195,6 +215,9 @@ module.exports = (robot) ->
 #### Client methods ####
 ########################
   robot.respond /sensu clients/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
     credential = createCredential()
     req = robot.http(config.sensu_api + '/clients', http_options)
@@ -218,6 +241,9 @@ module.exports = (robot) ->
           msg.send output.sort().join('\n')
 
   robot.respond /sensu client (?:http\:\/\/)?(.*)( history)/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
     client = msg.match[1]
 
@@ -249,6 +275,9 @@ module.exports = (robot) ->
 
   # get client info (not history)
   robot.respond /sensu client (?:http\:\/\/)?(.*)/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
     client = msg.match[1]
     # ignore if user asks for history
@@ -274,6 +303,9 @@ module.exports = (robot) ->
 
 
   robot.respond /(?:sensu)? remove client (?:http\:\/\/)?(.*)/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
     client= msg.match[1]
 
@@ -297,6 +329,9 @@ module.exports = (robot) ->
 #### Event methods ####
 #######################
   robot.respond /sensu events(?: for (?:http\:\/\/)?(.*))?/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
     if msg.match[1]
       client = '/' + msg.match[1]
@@ -328,6 +363,9 @@ module.exports = (robot) ->
         msg.send output.sort().join('\n')
 
   robot.respond /(?:sensu)? resolve event (?:http\:\/\/)?(.*)(?:\/)(.*)/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
     client = msg.match[1]
 
