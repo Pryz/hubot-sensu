@@ -172,7 +172,7 @@ module.exports = (robot) ->
 
     reason = msg.match[5]
     if reason
-      data['content']['reason'] = msg.message.user.name + 'silenced: ' + reason
+      data['content']['reason'] = msg.message.user.name + ' silenced: ' + reason
     else
       data['content']['reason'] = msg.message.user.name + ' silenced'
 
