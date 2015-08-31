@@ -128,7 +128,7 @@ module.exports = (robot) ->
           output.push message
         msg.send output.sort().join('\n')
 
-  robot.respond /(?:sensu)? silence (?:http\:\/\/)?([^\s\/]*)(?:\/)?([^\s]*)?(?: for (\d+)(\w))?(?: .*)/i, (msg) ->
+  robot.respond /(?:sensu)? silence (?:http\:\/\/)?([^\s\/]*)(?:\/)?([^\s]*)?(?: for (\d+)(\w))?(.*)/i, (msg) ->
     unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
       msg.send "Access denied."
       return
@@ -166,13 +166,11 @@ module.exports = (robot) ->
       expiration = 3600
       human_d = '1h'
 
-    if msg.match[5]
-      reason = msg.match[5]
-
     data = {}
     data['content'] = {}
     data['content']['timestamp'] = moment().unix()
 
+    reason = msg.match[5]
     if reason
       data['content']['reason'] = msg.message.user.name + 'silenced: ' + reason
     else
