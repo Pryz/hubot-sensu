@@ -29,8 +29,8 @@
 #
 
 config =
-  sensu_api: process.env.HUBOT_SENSU_API_URL
-
+  sensu_api: process.env.HUBOT_SENSU_API_URL || 'http://127.0.0.1:4567'
+  sensu_auth_basic: process.env.HUBOT_SENSU_AUTH_HEADERS || 'Basic some_hash_you_get_from_browser_inspect_window'
 moment = require('moment')
 
 module.exports = (robot) ->
@@ -51,7 +51,7 @@ module.exports = (robot) ->
 
   robot.respond /sensu info/i, (msg) ->
     validateVars
-    robot.http(config.sensu_api + '/info')
+    robot.http(config.sensu_api + '/info').header("Authorization", config.sensu_auth_basic)
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -72,7 +72,7 @@ module.exports = (robot) ->
 #######################
   robot.respond /(?:sensu)? stashes/i, (msg) ->
     validateVars
-    robot.http(config.sensu_api + '/stashes')
+    robot.http(config.sensu_api + '/stashes').header("Authorization", config.sensu_auth_basic)
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -131,7 +131,7 @@ module.exports = (robot) ->
     data['expire'] = expiration
     data['path'] = 'silence/' + path
 
-    robot.http(config.sensu_api + '/stashes')
+    robot.http(config.sensu_api + '/stashes').header("Authorization", config.sensu_auth_basic)
       .post(JSON.stringify(data)) (err, res, body) ->
         if res.statusCode is 201
           msg.send path + ' silenced for ' + human_d
@@ -151,7 +151,7 @@ module.exports = (robot) ->
     unless stash.match /^silence\/(.*)\//
       stash = addClientDomain(stash)
 
-    robot.http(config.sensu_api + '/stashes/' + stash)
+    robot.http(config.sensu_api + '/stashes/' + stash).header("Authorization", config.sensu_auth_basic)
       .delete() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -168,7 +168,7 @@ module.exports = (robot) ->
 ########################
   robot.respond /sensu clients/i, (msg) ->
     validateVars
-    robot.http(config.sensu_api + '/clients')
+    robot.http(config.sensu_api + '/clients').header("Authorization", config.sensu_auth_basic)
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -187,7 +187,7 @@ module.exports = (robot) ->
     validateVars
     client = addClientDomain(msg.match[1])
 
-    robot.http(config.sensu_api + '/clients/' + client + '/history')
+    robot.http(config.sensu_api + '/clients/' + client + '/history').header("Authorization", config.sensu_auth_basic)
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -214,7 +214,7 @@ module.exports = (robot) ->
     validateVars
     client = addClientDomain(msg.match[1])
 
-    robot.http(config.sensu_api + '/clients/' + client)
+    robot.http(config.sensu_api + '/clients/' + client).header("Authorization", config.sensu_auth_basic)
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -232,7 +232,7 @@ module.exports = (robot) ->
     validateVars
     client= addClientDomain(msg.match[1])
 
-    robot.http(config.sensu_api + '/clients/' + client)
+    robot.http(config.sensu_api + '/clients/' + client).header("Authorization", config.sensu_auth_basic)
       .delete() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -254,24 +254,28 @@ module.exports = (robot) ->
     else
       client = ''
 
-    robot.http(config.sensu_api + '/events' + client)
+    robot.http(config.sensu_api + '/events' + client).header("Authorization", config.sensu_auth_basic)
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
           return
         results = JSON.parse(body)
         output = []
+        #console.log results
         for result,value of results
           if value['flapping']
             flapping = ', flapping'
           else
             flapping = ''
-          output.push value['client'] + ' (' + value['check'] + flapping + ') - ' + value['output']
+          reply_msg = value['client'].name + ' (' + value['check'].name + flapping + ') - ' + value['check'].output
+          #msg.send reply_msg
+          output.push reply_msg
         if output.length is 0
           message = 'No events'
           if client != ''
             message = message + ' for ' + msg.match[1]
           msg.send message
+        #console.log output[0]
         msg.send output.sort().join('\n')
 
   robot.respond /(?:sensu)? resolve event (.*)(?:\/)(.*)/i, (msg) ->
@@ -282,7 +286,7 @@ module.exports = (robot) ->
     data['client'] = client
     data['check'] = msg.match[2]
 
-    robot.http(config.sensu_api + '/resolve')
+    robot.http(config.sensu_api + '/resolve').header("Authorization", config.sensu_auth_basic)
       .post(JSON.stringify(data)) (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
