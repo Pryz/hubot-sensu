@@ -5,8 +5,12 @@
 #   "moment": ">=1.6.0"
 #
 # Configuration:
-#   HUBOT_SENSU_API_UR - URL for the sensu api service.  http://sensu.yourdomain.com:4567
-#   HUBOT_SENSU_DOMAIN - Domain to force on all clients.  Not used if blank/unset
+#   HUBOT_SENSU_API_URL - URL for the sensu api service.  http://sensu.yourdomain.com:4567
+#   HUBOT_SENSU_API_USERNAME - Username for the sensu api basic auth. Not used if blank/unset
+#   HUBOT_SENSU_API_PASSWORD - Password for the sensu api basic auth. Not used if blank/unset
+#   HUBOT_SENSU_API_ALLOW_INVALID_CERTS - Allow self signed and invalid certs. Default:false
+#   HUBOT_SENSU_ROLES - using the auth script, what role has access to this.
+#                       only supports one role right now.
 #
 # Commands:
 #   hubot sensu info - show sensu api info
@@ -15,7 +19,7 @@
 #   hubot sensu remove stash <stash> - remove a stash from sensu
 #   hubot sensu clients - show all clients
 #   hubot sensu client <client>[ history] - show a specific client['s history]
-#   hubot sensu sensu remove client <client> - remove a client from sensu
+#   hubot sensu remove client <client> - remove a client from sensu
 #   hubot sensu events[ for <client>] - show all events or for a specific client
 #   hubot sensu resolve event <client>/<service> - resolve a sensu event
 #
@@ -24,14 +28,21 @@
 #   Checks endpoint not implemented (http://docs.sensuapp.org/0.12/api/checks.html) -- also note /check/request is deprecated in favor of /request
 #   Aggregates endpoint not implemented (http://docs.sensuapp.org/0.12/api/aggregates.html)
 #
-# Author:
+# Authors:
 #   Justin Lambert - jlambert121
+#   Josh Beard
 #
 
 config =
-  sensu_api: process.env.HUBOT_SENSU_API_URL || 'http://127.0.0.1:4567'
-  sensu_auth_basic: process.env.HUBOT_SENSU_AUTH_HEADERS || 'Basic some_hash_you_get_from_browser_inspect_window'
+  sensu_api: process.env.HUBOT_SENSU_API_URL
+  allow_invalid_certs: process.env.HUBOT_SENSU_API_ALLOW_INVALID_CERTS
+  sensu_roles: process.env.HUBOT_SENSU_ROLE
 moment = require('moment')
+
+if config.allow_invalid_certs
+  http_options = rejectUnauthorized: false
+else
+  http_options = {}
 
 module.exports = (robot) ->
 
@@ -41,17 +52,38 @@ module.exports = (robot) ->
       msg.send "Please set the HUBOT_SENSU_API_URL environment variable."
       return
 
+  createCredential = ->
+    username = process.env.HUBOT_SENSU_API_USERNAME
+    password = process.env.HUBOT_SENSU_API_PASSWORD
+    if username && password
+      auth = 'Basic ' + new Buffer(username + ':' + password).toString('base64');
+    else
+      auth = null
+    auth
+
 ######################
 #### Info methods ####
 ######################
   robot.respond /sensu help/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
+
     cmds = robot.helpCommands()
     cmds = (cmd for cmd in cmds when cmd.match(/(sensu)/))
     msg.send cmds.join("\n")
 
   robot.respond /sensu info/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
-    robot.http(config.sensu_api + '/info').header("Authorization", config.sensu_auth_basic)
+    credential = createCredential()
+
+    req = robot.http(config.sensu_api + '/info', http_options)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -71,32 +103,42 @@ module.exports = (robot) ->
 #### Stash methods ####
 #######################
   robot.respond /(?:sensu)? stashes/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
-    robot.http(config.sensu_api + '/stashes').header("Authorization", config.sensu_auth_basic)
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/stashes', http_options)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
           return
         results = JSON.parse(body)
         output = []
-        for result,value of results
+        for value in results
           console.log value
-          message = value['path'] + ' added on ' + moment.unix(value['content']['timestamp']).format('HH:MM M/D/YY')
-          if value['content']['by']
-            message = message + ' by ' + value['content']['by']
+          message = value['path'] + ' added on ' + moment.unix(value['content']['timestamp']).format('HH:MM YY/M/D')
+          if value['content']['reason']
+            message = message + ' reason: ' + value['content']['reason']
           if value['expire'] and value['expire'] > 0
             message = message + ', expires in ' + value['expire'] + ' seconds'
           output.push message
         msg.send output.sort().join('\n')
 
-  robot.respond /(?:sensu)? silence ([^\s\/]*)(?:\/)?([^\s]*)?(?: for (\d+)(\w))?/i, (msg) ->
+  robot.respond /(?:sensu)? silence (?:http\:\/\/)?([^\s\/]*)(?:\/)?([^\s]*)?(?: for (\d+)(\w))?(.*)/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     # msg.match[1] = client
     # msg.match[2] = event (optional)
     # msg.match[3] = duration (optional)
     # msg.match[4] = units (required if duration)
 
     validateVars
-    client = addClientDomain(msg.match[1])
+    client = msg.match[1]
 
     if msg.match[2]
       path = client + '/' + msg.match[2]
@@ -127,11 +169,21 @@ module.exports = (robot) ->
     data = {}
     data['content'] = {}
     data['content']['timestamp'] = moment().unix()
-    data['content']['by'] = msg.message.user.name
+
+    reason = msg.match[5]
+    if reason
+      data['content']['reason'] = msg.message.user.name + ' silenced: ' + reason
+    else
+      data['content']['reason'] = msg.message.user.name + ' silenced'
+
     data['expire'] = expiration
     data['path'] = 'silence/' + path
 
-    robot.http(config.sensu_api + '/stashes').header("Authorization", config.sensu_auth_basic)
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/stashes', http_options)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .post(JSON.stringify(data)) (err, res, body) ->
         if res.statusCode is 201
           msg.send path + ' silenced for ' + human_d
@@ -140,18 +192,20 @@ module.exports = (robot) ->
         else
           msg.send "API returned an error for path silence/#{path}\ndata: #{JSON.stringify(data)}\nresponse:#{res.statusCode}: #{body}"
 
-  robot.respond /(?:sensu)? remove stash (.*)/i, (msg) ->
+  robot.respond /(?:sensu)? remove stash (?:http\:\/\/)?(.*)/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
 
     stash = msg.match[1]
     unless stash.match /^silence\//
       stash = 'silence/' + stash
-
-    # If it is only a hostname, verify domain name
-    unless stash.match /^silence\/(.*)\//
-      stash = addClientDomain(stash)
-
-    robot.http(config.sensu_api + '/stashes/' + stash).header("Authorization", config.sensu_auth_basic)
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/stashes/' + stash, http_options)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .delete() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -167,27 +221,43 @@ module.exports = (robot) ->
 #### Client methods ####
 ########################
   robot.respond /sensu clients/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
-    robot.http(config.sensu_api + '/clients').header("Authorization", config.sensu_auth_basic)
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/clients', http_options)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
           return
         results = JSON.parse(body)
         output = []
-        for result,value of results
+        for value in results
           output.push value['name'] + ' (' + value['address'] + ') subscriptions: ' + value['subscriptions'].sort().join(', ')
 
         if output.length is 0
           msg.send 'No clients'
+        else if output.length > 10
+          msg.send 'You have too many clients for this'
         else
           msg.send output.sort().join('\n')
 
-  robot.respond /sensu client (.*)( history)/i, (msg) ->
+  robot.respond /sensu client (?:http\:\/\/)?(.*)( history)/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
-    client = addClientDomain(msg.match[1])
+    client = msg.match[1]
 
-    robot.http(config.sensu_api + '/clients/' + client + '/history').header("Authorization", config.sensu_auth_basic)
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/clients/' + client + '/history', http_options)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -195,13 +265,13 @@ module.exports = (robot) ->
         if res.statusCode is 200
           results = JSON.parse(body)
           output = []
-          for result,value of results
+          for value in results
             output.push value['check'] + ' (last execution: ' + moment.unix(value['last_execution']).format('HH:MM M/D/YY') + ') history: ' + value['history'].join(', ')
 
           if output.length is 0
             msg.send 'No history found for ' + client
           else
-            message = 'History for ' + client
+            message = 'History for ' + client + ':\n'
             message = message + output.sort().join('\n')
             msg.send message
         else if res.statusCode is 404
@@ -209,12 +279,22 @@ module.exports = (robot) ->
         else
           msg.send "An error occurred looking up #{client}'s history (#{res.statusCode}: #{body})"
 
-
-  robot.respond /sensu client (.*)/i, (msg) ->
+  # get client info (not history)
+  robot.respond /sensu client (?:http\:\/\/)?(.*)/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
-    client = addClientDomain(msg.match[1])
+    client = msg.match[1]
+    # ignore if user asks for history
+    if client.match(/\ history/)
+      return
 
-    robot.http(config.sensu_api + '/clients/' + client).header("Authorization", config.sensu_auth_basic)
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/clients/' + client, http_options)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -228,11 +308,18 @@ module.exports = (robot) ->
           msg.send "An error occurred looking up #{client} #{res.statusCode}: #{body}"
 
 
-  robot.respond /(?:sensu)? remove client (.*)/i, (msg) ->
+  robot.respond /(?:sensu)? remove client (?:http\:\/\/)?(.*)/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
-    client= addClientDomain(msg.match[1])
+    client= msg.match[1]
 
-    robot.http(config.sensu_api + '/clients/' + client).header("Authorization", config.sensu_auth_basic)
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/clients/' + client, http_options)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .delete() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
@@ -247,46 +334,56 @@ module.exports = (robot) ->
 #######################
 #### Event methods ####
 #######################
-  robot.respond /sensu events(?: for (.*))?/i, (msg) ->
+  robot.respond /sensu events(?: for (?:http\:\/\/)?(.*))?/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
     if msg.match[1]
-      client = '/' + addClientDomain(msg.match[1])
+      client = '/' + msg.match[1]
     else
       client = ''
 
-    robot.http(config.sensu_api + '/events' + client).header("Authorization", config.sensu_auth_basic)
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/events' + client, http_options)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .get() (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
           return
         results = JSON.parse(body)
         output = []
-        #console.log results
-        for result,value of results
+        for value in results
           if value['flapping']
             flapping = ', flapping'
           else
             flapping = ''
-          reply_msg = value['client'].name + ' (' + value['check'].name + flapping + ') - ' + value['check'].output
-          #msg.send reply_msg
-          output.push reply_msg
+          output.push value['client']['name'] + ' (' + value['check']['name'] + flapping + ') - ' + value['check']['output']
         if output.length is 0
           message = 'No events'
           if client != ''
             message = message + ' for ' + msg.match[1]
           msg.send message
-        #console.log output[0]
         msg.send output.sort().join('\n')
 
-  robot.respond /(?:sensu)? resolve event (.*)(?:\/)(.*)/i, (msg) ->
+  robot.respond /(?:sensu)? resolve event (?:http\:\/\/)?(.*)(?:\/)(.*)/i, (msg) ->
+    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
+      msg.send "Access denied."
+      return
     validateVars
-    client = addClientDomain(msg.match[1])
+    client = msg.match[1]
 
     data = {}
     data['client'] = client
     data['check'] = msg.match[2]
 
-    robot.http(config.sensu_api + '/resolve').header("Authorization", config.sensu_auth_basic)
+    credential = createCredential()
+    req = robot.http(config.sensu_api + '/resolve', http_options)
+    if credential
+      req = req.headers(Authorization: credential)
+    req
       .post(JSON.stringify(data)) (err, res, body) ->
         if err
           msg.send "Sensu says: #{err}"
