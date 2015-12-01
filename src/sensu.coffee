@@ -236,12 +236,12 @@ module.exports = (robot) ->
         results = JSON.parse(body)
         output = []
         for value in results
-          output.push value['name'] + ' (' + value['address'] + ') subscriptions: ' + value['subscriptions'].sort().join(', ')
+          output.push value['name'] + ' (' + value['address'] + ')'
 
         if output.length is 0
           msg.send 'No clients'
-        else if output.length > 10
-          msg.send 'You have too many clients for this'
+        else if output.length > 100
+          msg.send "You have too many clients for this (#{output.length})"
         else
           msg.send output.sort().join('\n')
 
@@ -296,12 +296,17 @@ module.exports = (robot) ->
           return
         if res.statusCode is 200
           result = JSON.parse(body)
-          msg.send result['name'] + ' (' + result['address'] + ') subscriptions: ' + result['subscriptions'].sort().join(', ')
+          message = "Client : #{result['name']} (#{result['address']})\n
+Cluster : #{result['cluster']}\n
+VPC : #{result['vpc']}\n
+Puppet role : #{result['role']}\n
+URL : #{config.sensu_api + '/clients/' + client}
+          "
+          msg.send message
         else if res.statusCode is 404
           msg.send client + ' not found'
         else
           msg.send "An error occurred looking up #{client} #{res.statusCode}: #{body}"
-
 
   robot.respond /(?:sensu)? remove client ([\w\-]+) (?:http\:\/\/)?(.*)/i, (msg) ->
     validateVars
