@@ -74,18 +74,12 @@ module.exports = (robot) ->
 #### Info methods ####
 ######################
   robot.respond /sensu help/i, (msg) ->
-    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
-      msg.send "Access denied."
-      return
 
     cmds = robot.helpCommands()
     cmds = (cmd for cmd in cmds when cmd.match(/(sensu)/))
     msg.send cmds.join("\n")
 
   robot.respond /sensu info/i, (msg) ->
-    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
-      msg.send "Access denied."
-      return
     validateVars
     credential = createCredential()
     build_sensu_url(msg.match[1])
@@ -112,9 +106,6 @@ module.exports = (robot) ->
 #### Stash methods ####
 #######################
   robot.respond /(?:sensu)? stashes/i, (msg) ->
-    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
-      msg.send "Access denied."
-      return
     validateVars
     credential = createCredential()
     build_sensu_url(msg.match[1])
@@ -139,9 +130,6 @@ module.exports = (robot) ->
         msg.send output.sort().join('\n')
 
   robot.respond /(?:sensu)? silence (?:http\:\/\/)?([^\s\/]*)(?:\/)?([^\s]*)?(?: for (\d+)(\w))?(.*)/i, (msg) ->
-    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
-      msg.send "Access denied."
-      return
     # msg.match[1] = client
     # msg.match[2] = event (optional)
     # msg.match[3] = duration (optional)
@@ -233,9 +221,6 @@ module.exports = (robot) ->
 #### Client methods ####
 ########################
   robot.respond /sensu clients/i, (msg) ->
-    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
-      msg.send "Access denied."
-      return
     validateVars
     credential = createCredential()
     build_sensu_url(msg.match[1])
@@ -260,9 +245,6 @@ module.exports = (robot) ->
           msg.send output.sort().join('\n')
 
   robot.respond /sensu client (?:http\:\/\/)?(.*)( history)/i, (msg) ->
-    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
-      msg.send "Access denied."
-      return
     validateVars
     client = msg.match[1]
 
@@ -295,9 +277,6 @@ module.exports = (robot) ->
 
   # get client info (not history)
   robot.respond /sensu client (?:http\:\/\/)?(.*)/i, (msg) ->
-    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
-      msg.send "Access denied."
-      return
     validateVars
     client = msg.match[1]
     # ignore if user asks for history
@@ -324,9 +303,6 @@ module.exports = (robot) ->
 
 
   robot.respond /(?:sensu)? remove client (?:http\:\/\/)?(.*)/i, (msg) ->
-    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
-      msg.send "Access denied."
-      return
     validateVars
     client= msg.match[1]
 
@@ -351,9 +327,6 @@ module.exports = (robot) ->
 #### Event methods ####
 #######################
   robot.respond /sensu events(?: for (?:http\:\/\/)?(.*))?/i, (msg) ->
-    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
-      msg.send "Access denied."
-      return
     validateVars
     if msg.match[1]
       client = '/' + msg.match[1]
@@ -386,9 +359,6 @@ module.exports = (robot) ->
         msg.send output.sort().join('\n')
 
   robot.respond /(?:sensu)? resolve event (?:http\:\/\/)?(.*)(?:\/)(.*)/i, (msg) ->
-    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
-      msg.send "Access denied."
-      return
     validateVars
     client = msg.match[1]
 
