@@ -48,10 +48,7 @@ if config.allow_invalid_certs
 else
   http_options = {}
 
-build_sensu_url = (region) ->
-  host = process.env.HUBOT_SENSU_API_URL_PREFIX + region + "." + process.env.HUBOT_SENSU_API_URL_DOMAIN
-  port = process.env.HUBOT_SENSU_API_PORT
-  config.sensu_api = "http://#{host}:#{port}"
+
 
 module.exports = (robot) ->
 
@@ -60,6 +57,11 @@ module.exports = (robot) ->
       robot.logger.error "HUBOT_SENSU_API_URL is unset"
       msg.send "Please set the HUBOT_SENSU_API_URL environment variable."
       return
+
+  build_sensu_url = (region) ->
+    host = process.env.HUBOT_SENSU_API_URL_PREFIX + region + "." + process.env.HUBOT_SENSU_API_URL_DOMAIN
+    port = process.env.HUBOT_SENSU_API_PORT
+    config.sensu_api = "http://#{host}:#{port}"
 
   createCredential = ->
     username = process.env.HUBOT_SENSU_API_USERNAME
@@ -79,7 +81,7 @@ module.exports = (robot) ->
     cmds = (cmd for cmd in cmds when cmd.match(/(sensu)/))
     msg.send cmds.join("\n")
 
-  robot.respond /sensu info/i, (msg) ->
+  robot.respond /sensu info (.*)/i, (msg) ->
     validateVars
     credential = createCredential()
     build_sensu_url(msg.match[1])
@@ -105,7 +107,7 @@ module.exports = (robot) ->
 #######################
 #### Stash methods ####
 #######################
-  robot.respond /(?:sensu)? stashes/i, (msg) ->
+  robot.respond /(?:sensu)? stashes (.*)/i, (msg) ->
     validateVars
     credential = createCredential()
     build_sensu_url(msg.match[1])
@@ -129,23 +131,25 @@ module.exports = (robot) ->
           output.push message
         msg.send output.sort().join('\n')
 
-  robot.respond /(?:sensu)? silence (?:http\:\/\/)?([^\s\/]*)(?:\/)?([^\s]*)?(?: for (\d+)(\w))?(.*)/i, (msg) ->
-    # msg.match[1] = client
-    # msg.match[2] = event (optional)
-    # msg.match[3] = duration (optional)
-    # msg.match[4] = units (required if duration)
+  robot.respond /(?:sensu)? silence ([\w\-]+) (?:http\:\/\/)?([^\s\/]*)(?:\/)?([^\s]*)?(?: for (\d+)(\w))?(.*)/i, (msg) ->
+    # msg.match[1] = region
+    # msg.match[2] = client
+    # msg.match[3] = event (optional)
+    # msg.match[4] = duration (optional)
+    # msg.match[5] = units (required if duration)
+    # msg.match[6] = reason
 
     validateVars
-    client = msg.match[1]
+    client = msg.match[2]
 
-    if msg.match[2]
-      path = client + '/' + msg.match[2]
+    if msg.match[3]
+      path = client + '/' + msg.match[3]
     else
       path = client
 
-    duration = msg.match[3]
-    if msg.match[4]
-      unit = msg.match[4]
+    duration = msg.match[4]
+    if msg.match[5]
+      unit = msg.match[5]
       switch unit
         when 's'
           expiration = duration * 1
@@ -168,7 +172,7 @@ module.exports = (robot) ->
     data['content'] = {}
     data['content']['timestamp'] = moment().unix()
 
-    reason = msg.match[5]
+    reason = msg.match[6]
     if reason
       data['content']['reason'] = msg.message.user.name + ' silenced: ' + reason
     else
@@ -191,13 +195,10 @@ module.exports = (robot) ->
         else
           msg.send "API returned an error for path silence/#{path}\ndata: #{JSON.stringify(data)}\nresponse:#{res.statusCode}: #{body}"
 
-  robot.respond /(?:sensu)? remove stash (?:http\:\/\/)?(.*)/i, (msg) ->
-    unless robot.auth.hasRole(msg.envelope.user, config.sensu_roles)
-      msg.send "Access denied."
-      return
+  robot.respond /(?:sensu)? remove stash ([\w\-]+) (?:http\:\/\/)?(.*)/i, (msg) ->
     validateVars
 
-    stash = msg.match[1]
+    stash = msg.match[2]
     unless stash.match /^silence\//
       stash = 'silence/' + stash
     credential = createCredential()
@@ -220,7 +221,7 @@ module.exports = (robot) ->
 ########################
 #### Client methods ####
 ########################
-  robot.respond /sensu clients/i, (msg) ->
+  robot.respond /sensu clients ([\w\-]+)/i, (msg) ->
     validateVars
     credential = createCredential()
     build_sensu_url(msg.match[1])
@@ -244,9 +245,9 @@ module.exports = (robot) ->
         else
           msg.send output.sort().join('\n')
 
-  robot.respond /sensu client (?:http\:\/\/)?(.*)( history)/i, (msg) ->
+  robot.respond /sensu client ([\w\-]+) (?:http\:\/\/)?(.*)( history)/i, (msg) ->
     validateVars
-    client = msg.match[1]
+    client = msg.match[2]
 
     credential = createCredential()
     build_sensu_url(msg.match[1])
@@ -276,9 +277,9 @@ module.exports = (robot) ->
           msg.send "An error occurred looking up #{client}'s history (#{res.statusCode}: #{body})"
 
   # get client info (not history)
-  robot.respond /sensu client (?:http\:\/\/)?(.*)/i, (msg) ->
+  robot.respond /sensu client ([\w\-]+) (?:http\:\/\/)?(.*)/i, (msg) ->
     validateVars
-    client = msg.match[1]
+    client = msg.match[2]
     # ignore if user asks for history
     if client.match(/\ history/)
       return
@@ -302,9 +303,9 @@ module.exports = (robot) ->
           msg.send "An error occurred looking up #{client} #{res.statusCode}: #{body}"
 
 
-  robot.respond /(?:sensu)? remove client (?:http\:\/\/)?(.*)/i, (msg) ->
+  robot.respond /(?:sensu)? remove client ([\w\-]+) (?:http\:\/\/)?(.*)/i, (msg) ->
     validateVars
-    client= msg.match[1]
+    client= msg.match[2]
 
     credential = createCredential()
     build_sensu_url(msg.match[1])
@@ -326,10 +327,10 @@ module.exports = (robot) ->
 #######################
 #### Event methods ####
 #######################
-  robot.respond /sensu events(?: for (?:http\:\/\/)?(.*))?/i, (msg) ->
+  robot.respond /sensu events ([\w\-]+)(?: for (?:http\:\/\/)?(.*))?/i, (msg) ->
     validateVars
-    if msg.match[1]
-      client = '/' + msg.match[1]
+    if msg.match[2]
+      client = '/' + msg.match[2]
     else
       client = ''
 
@@ -358,13 +359,13 @@ module.exports = (robot) ->
           msg.send message
         msg.send output.sort().join('\n')
 
-  robot.respond /(?:sensu)? resolve event (?:http\:\/\/)?(.*)(?:\/)(.*)/i, (msg) ->
+  robot.respond /(?:sensu)? resolve event ([\w\-]+) (?:http\:\/\/)?(.*)(?:\/)(.*)/i, (msg) ->
     validateVars
-    client = msg.match[1]
+    client = msg.match[2]
 
     data = {}
     data['client'] = client
-    data['check'] = msg.match[2]
+    data['check'] = msg.match[3]
 
     credential = createCredential()
     build_sensu_url(msg.match[1])
