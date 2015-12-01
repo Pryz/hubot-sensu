@@ -6,6 +6,10 @@
 #
 # Configuration:
 #   HUBOT_SENSU_API_URL - URL for the sensu api service.  http://sensu.yourdomain.com:4567
+#   HUBOT_SENSU_API_URL_PREFIX - URL prefix to build URL. Example : http://sensu
+#   HUBOT_SENSU_API_URL_DOMAIN - URL domain to build URL. Example : mydomain.com
+#   HUBOT_SENSU_API_URL_REGION - Default Region to build URL. Example : us-east-1
+#   HUBOT_SENSU_API_PORT - Sensu API Port. Example : 4567
 #   HUBOT_SENSU_API_USERNAME - Username for the sensu api basic auth. Not used if blank/unset
 #   HUBOT_SENSU_API_PASSWORD - Password for the sensu api basic auth. Not used if blank/unset
 #   HUBOT_SENSU_API_ALLOW_INVALID_CERTS - Allow self signed and invalid certs. Default:false
@@ -13,15 +17,15 @@
 #                       only supports one role right now.
 #
 # Commands:
-#   hubot sensu info - show sensu api info
-#   hubot sensu stashes - show contents of the sensu stash
-#   hubot sensu silence <client>[/service] [for \d+[unit]] - silence an alert for an optional period of time (default 1h)
-#   hubot sensu remove stash <stash> - remove a stash from sensu
-#   hubot sensu clients - show all clients
-#   hubot sensu client <client>[ history] - show a specific client['s history]
-#   hubot sensu remove client <client> - remove a client from sensu
-#   hubot sensu events[ for <client>] - show all events or for a specific client
-#   hubot sensu resolve event <client>/<service> - resolve a sensu event
+#   hubot sensu info <region> - show sensu api info
+#   hubot sensu stashes <region> - show contents of the sensu stash
+#   hubot sensu silence <region> <client>[/service] [for \d+[unit]] - silence an alert for an optional period of time (default 1h)
+#   hubot sensu remove stash <region> <stash> - remove a stash from sensu
+#   hubot sensu clients <region> - show all clients
+#   hubot sensu client <region> <client>[ history] - show a specific client['s history]
+#   hubot sensu remove client <region> <client> - remove a client from sensu
+#   hubot sensu events <region> [ for <client>] - show all events or for a specific client
+#   hubot sensu resolve event <region> <client>/<service> - resolve a sensu event
 #
 # Notes:
 #   Requires Sensu >= 0.12 because of expire parameter on stashes and updated /resolve and /request endpoints
@@ -43,6 +47,11 @@ if config.allow_invalid_certs
   http_options = rejectUnauthorized: false
 else
   http_options = {}
+
+build_sensu_url = (region) ->
+  host = process.env.HUBOT_SENSU_API_URL_PREFIX + region + "." + process.env.HUBOT_SENSU_API_URL_DOMAIN
+  port = process.env.HUBOT_SENSU_API_PORT
+  config.sensu_api = "http://#{host}:#{port}"
 
 module.exports = (robot) ->
 
@@ -79,7 +88,7 @@ module.exports = (robot) ->
       return
     validateVars
     credential = createCredential()
-
+    build_sensu_url(msg.match[1])
     req = robot.http(config.sensu_api + '/info', http_options)
     if credential
       req = req.headers(Authorization: credential)
@@ -108,6 +117,7 @@ module.exports = (robot) ->
       return
     validateVars
     credential = createCredential()
+    build_sensu_url(msg.match[1])
     req = robot.http(config.sensu_api + '/stashes', http_options)
     if credential
       req = req.headers(Authorization: credential)
@@ -180,6 +190,7 @@ module.exports = (robot) ->
     data['path'] = 'silence/' + path
 
     credential = createCredential()
+    build_sensu_url(msg.match[1])
     req = robot.http(config.sensu_api + '/stashes', http_options)
     if credential
       req = req.headers(Authorization: credential)
@@ -202,6 +213,7 @@ module.exports = (robot) ->
     unless stash.match /^silence\//
       stash = 'silence/' + stash
     credential = createCredential()
+    build_sensu_url(msg.match[1])
     req = robot.http(config.sensu_api + '/stashes/' + stash, http_options)
     if credential
       req = req.headers(Authorization: credential)
@@ -226,6 +238,7 @@ module.exports = (robot) ->
       return
     validateVars
     credential = createCredential()
+    build_sensu_url(msg.match[1])
     req = robot.http(config.sensu_api + '/clients', http_options)
     if credential
       req = req.headers(Authorization: credential)
@@ -254,6 +267,7 @@ module.exports = (robot) ->
     client = msg.match[1]
 
     credential = createCredential()
+    build_sensu_url(msg.match[1])
     req = robot.http(config.sensu_api + '/clients/' + client + '/history', http_options)
     if credential
       req = req.headers(Authorization: credential)
@@ -291,6 +305,7 @@ module.exports = (robot) ->
       return
 
     credential = createCredential()
+    build_sensu_url(msg.match[1])
     req = robot.http(config.sensu_api + '/clients/' + client, http_options)
     if credential
       req = req.headers(Authorization: credential)
@@ -316,6 +331,7 @@ module.exports = (robot) ->
     client= msg.match[1]
 
     credential = createCredential()
+    build_sensu_url(msg.match[1])
     req = robot.http(config.sensu_api + '/clients/' + client, http_options)
     if credential
       req = req.headers(Authorization: credential)
@@ -345,6 +361,7 @@ module.exports = (robot) ->
       client = ''
 
     credential = createCredential()
+    build_sensu_url(msg.match[1])
     req = robot.http(config.sensu_api + '/events' + client, http_options)
     if credential
       req = req.headers(Authorization: credential)
@@ -380,6 +397,7 @@ module.exports = (robot) ->
     data['check'] = msg.match[2]
 
     credential = createCredential()
+    build_sensu_url(msg.match[1])
     req = robot.http(config.sensu_api + '/resolve', http_options)
     if credential
       req = req.headers(Authorization: credential)
